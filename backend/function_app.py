@@ -8,16 +8,15 @@ app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 HUGGINGFACE_API_KEY = os.environ.get("HUGGINGFACE_API_KEY")
 PRIMARY_MODEL = "facebook/bart-large-cnn"
-FALLBACK_MODEL = "sshleifer/distilbart-cnn-12-6"  # Lighter backup model
+FALLBACK_MODEL = "sshleifer/distilbart-cnn-12-6"
 
 def clean_text(text):
-    text = re.sub(r"<[^>]+>", "", text)  # Remove HTML tags
-    text = re.sub(r"\s+", " ", text).strip()  # Normalize whitespace
+    text = re.sub(r"<[^>]+>", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
     return text
 
 @app.route(route="summarize_news", methods=["POST", "OPTIONS"])
 def summarize_news(req: func.HttpRequest) -> func.HttpResponse:
-    # Handle CORS
     if req.method == "OPTIONS":
         return func.HttpResponse(
             "",
@@ -41,7 +40,6 @@ def summarize_news(req: func.HttpRequest) -> func.HttpResponse:
                 headers={"Access-Control-Allow-Origin": "*"},
             )
 
-        # ✅ Step 1: Extract clean article text from Jina Reader API
         jina_url = f"https://r.jina.ai/{url}"
         jina_response = requests.get(jina_url, timeout=15)
 
@@ -62,9 +60,7 @@ def summarize_news(req: func.HttpRequest) -> func.HttpResponse:
                 headers={"Access-Control-Allow-Origin": "*"},
             )
 
-        article_text = article_text[:3000]  # Trim for model safety
-
-        # ✅ Step 2: Summarize using Hugging Face API
+        article_text = article_text[:3000] 
         def summarize_with_model(model_name):
             response = requests.post(
                 f"https://router.huggingface.co/hf-inference/models/{model_name}",
@@ -78,13 +74,9 @@ def summarize_news(req: func.HttpRequest) -> func.HttpResponse:
             return response
 
         hf_response = summarize_with_model(PRIMARY_MODEL)
-
-        # Try fallback model if main one fails
         if hf_response.status_code != 200 or "error" in hf_response.text:
             logging.warning(f"Primary model failed, retrying with fallback: {FALLBACK_MODEL}")
             hf_response = summarize_with_model(FALLBACK_MODEL)
-
-        # If still failed, return error
         if hf_response.status_code != 200:
             logging.error(f"Hugging Face error: {hf_response.text}")
             return func.HttpResponse(
