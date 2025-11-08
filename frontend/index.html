@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>News Summarizer</title>
+  </head>
+  <body>
+    <h2>News Summarizer (Azure + Hugging Face)</h2>
+
+    <p>Enter a news article URL:</p>
+    <input
+      type="text"
+      id="url"
+      size="80"
+      placeholder="https://example.com/article"
+    /><br /><br />
+
+    <button onclick="summarize()">Summarize</button>
+
+    <h3>Result:</h3>
+    <pre id="summary"></pre>
+
+    <script>
+      async function summarize() {
+        const url = document.getElementById("url").value;
+        const summaryDiv = document.getElementById("summary");
+        summaryDiv.textContent = "Summarizing... please wait.";
+
+        try {
+          const response = await fetch(
+            "https://news-summarizer-app.azurewebsites.net/api/summarize_news",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ url }),
+            }
+          );
+
+          const data = await response.json();
+          summaryDiv.textContent =
+            data.summary || data.error || "No summary available.";
+        } catch (error) {
+          summaryDiv.textContent = "Error: " + error.message;
+        }
+      }
+    </script>
+  </body>
+</html>
